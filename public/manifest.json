@@ -1,16 +1,28 @@
 {
     "manifest_version": 3,
-    "name": "Page HTML Logger",
+    "name": "BuyBook Cart Checker",
     "version": "1.0",
+    "description": "Automatically checks cart contents on e-commerce sites",
     "permissions": [
         "scripting",
         "tabs",
-        "activeTab"
+        "activeTab",
+        "storage"
     ],
     "host_permissions": [
         "https://*/*"
     ],
     "action": {
         "default_popup": "index.html"
-    }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://*/*"
+            ],
+            "js": [
+                "contentScript.js"
+            ]
+        }
+    ]
 }
