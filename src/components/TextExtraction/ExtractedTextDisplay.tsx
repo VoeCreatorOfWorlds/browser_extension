@@ -8,6 +8,7 @@ import { CartProduct } from '../../types';
 
 interface CartResponse {
     cartProducts: CartProduct[];
+    //total?: number;
 }
 
 interface CartContentsProps {

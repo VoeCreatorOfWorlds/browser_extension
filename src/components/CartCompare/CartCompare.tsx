@@ -36,13 +36,21 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart,
             try {
                 const cart = {
                     cartProducts: originalCart,
-                    getTotalPrice: () => originalCart.reduce((total, product) => total + product.price * 1, 0)
+                    getTotalPrice: () => originalCart.reduce((total, product) => total + product.price * product.quantity, 0)
                 };
                 const result = await compareCart(cart);
                 console.log('Alternative carts:', result);
 
-                const originalTotal = originalCart.reduce((total, product) => total + product.price * 1, 0);
-                const sortedCarts = result.sort((a, b) => {
+                const cartsWithTotal = result.map(alternativeCart => {
+                    const total = alternativeCart.products.reduce((cartTotal, product, index) => {
+                        const quantity = originalCart[index].quantity;
+                        return cartTotal + (product.price * quantity);
+                    }, 0);
+                    return { ...alternativeCart, total };
+                });
+
+                const originalTotal = originalCart.reduce((total, product) => total + product.price * product.quantity, 0);
+                const sortedCarts = cartsWithTotal.sort((a, b) => {
                     const savingsA = originalTotal - a.total;
                     const savingsB = originalTotal - b.total;
                     return savingsB - savingsA;
@@ -112,7 +120,7 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart,
             <h2 className="text-2xl font-bold mb-6 text-center text-indigo-800">{headerMessage}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-3">
                 {alternativeCarts.map((cart, cartIndex) => {
-                    const originalTotal = originalCart.reduce((total, product) => total + product.price * 1, 0);
+                    const originalTotal = originalCart.reduce((total, product) => total + product.price * product.quantity, 0);
                     const savings = originalTotal - cart.total;
                     const isSavings = savings > 0;
 
