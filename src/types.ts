@@ -16,7 +16,7 @@ interface User {
   email: string;
 }
 
-type KycStep = 
+type KycStep =
   | 'not_started'
   | 'business_kyc_start'
   | 'user_kyc_start'
@@ -33,4 +33,29 @@ interface OnboardingStatus {
   currentStep: KycStep;
 }
 
-export type {AppState, AuthTokens, User, OnboardingStatus, KycStep}
+export interface CartProduct {
+  productName: string;
+  price: number;
+  siteUrl: string;
+  description: string;
+  quantity: number;
+}
+
+export interface AlternativeProduct extends CartProduct {
+  url: string;
+  siteUrl: string;
+  quantity: number;
+}
+
+export interface Cart {
+  cartProducts: CartProduct[];
+  getTotalPrice: () => number;
+}
+
+export interface AlternativeCart {
+  products: AlternativeProduct[];
+  originalProducts: CartProduct[];
+  total: number;
+}
+
+export type { AppState, AuthTokens, User, OnboardingStatus, KycStep }

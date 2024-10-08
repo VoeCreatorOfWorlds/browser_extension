@@ -1,25 +1,21 @@
 import { API_URL } from '../constants';
 import { authenticatedFetch } from '../utils/auth';
+import { CartProduct } from '../types';
 
 interface CartRetrievalResponse {
-  cartProducts: Array<{
-    productName: string;
-    price: number;
-    quantity: number;
-  }>;
+  cartProducts: Array<CartProduct>;
 }
 
 
 export const getCart = async (innerText: string): Promise<CartRetrievalResponse> => {
   console.log('getCart called with innerText:', innerText);
-  
+
   if (!innerText) {
     console.warn('Warning: innerText is empty or undefined');
   }
 
   const bodyObj = { cartDescription: innerText };
   const body = JSON.stringify(bodyObj);
-  console.log('Request body (stringified):', body);
 
   try {
     console.log(`Sending POST request to ${API_URL}/cart-contents`);

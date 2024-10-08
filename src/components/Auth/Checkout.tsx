@@ -1,12 +1,12 @@
 import React from 'react';
 
 interface CheckoutProps {
-    onCheckout: () => void;
+    onCompare: () => void;
     total: number;
 }
 
-export const CheckoutButtons: React.FC<CheckoutProps> = ({
-    onCheckout,
+export const Compare: React.FC<CheckoutProps> = ({
+    onCompare,
     total
 }) => {
     return (
@@ -17,11 +17,11 @@ export const CheckoutButtons: React.FC<CheckoutProps> = ({
                     <span className="text-sm font-bold text-gray-800">R {total.toFixed(2)}</span>
                 </div>
                 <button
-                    onClick={onCheckout}
+                    onClick={onCompare}
                     className="bg-blue-600 text-base hover:bg-blue-700 text-white font-semibold py-2 px-2 rounded-full transition duration-300 ease-in-out transform hover:scale-105
                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 shadow-md w-[150px]"
                 >
-                    Checkout
+                    Compare
                 </button>
             </div>
         </div>

@@ -24,22 +24,29 @@ const Header: React.FC<HeaderProps> = ({ tabs = defaultTabs }) => {
     const { currentPath } = useRouter();
 
     return (
-        <header className="bg-blue-100 w-full h-auto fixed top-0 z-50 shadow-md">
-            <div className="flex justify-around py-2">
+        <header className="bg-gradient-to-r from-purple-100 to-indigo-100 w-full h-auto fixed top-0 z-50 shadow-lg">
+            <div className="flex justify-around py-3 px-2">
                 {tabs.map((tab) => (
                     <Link
                         key={tab.id}
                         to={tab.path}
-                        className={`flex flex-col items-center text-sm p-2 rounded-lg w-fit transition-colors 
-                            ${currentPath === tab.path ? 'bg-blue-200' : 'hover:bg-blue-50'}`}
+                        className={`flex flex-col items-center text-sm p-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-110
+                            ${currentPath === tab.path
+                                ? 'bg-gradient-to-r from-purple-200 to-indigo-200 shadow-md'
+                                : 'hover:bg-purple-50'}`}
                     >
-                        <tab.icon
-                            className={`w-6 h-6 
-                                ${currentPath === tab.path ? 'text-blue-600' : 'text-blue-400'}`}
-                        />
+                        <div className={`p-2 rounded-full transition-all duration-300 ease-in-out
+                            ${currentPath === tab.path
+                                ? 'bg-gradient-to-r from-purple-500 to-indigo-500'
+                                : 'bg-gradient-to-r from-purple-400 to-indigo-400'}`}>
+                            <tab.icon
+                                className={`w-5 h-5 transition-all duration-300 ease-in-out
+                                    ${currentPath === tab.path ? 'text-white' : 'text-indigo-100'}`}
+                            />
+                        </div>
                         <span
-                            className={`mt-1 text-sm transition-all 
-                                ${currentPath === tab.path ? 'text-blue-600 font-medium' : 'text-blue-400'}`}
+                            className={`mt-1 text-xs font-medium transition-all duration-300 ease-in-out
+                                ${currentPath === tab.path ? 'text-indigo-800' : 'text-indigo-600'}`}
                         >
                             {tab.label}
                         </span>
