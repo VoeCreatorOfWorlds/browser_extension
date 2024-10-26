@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, CreditCard, CircleEllipsis } from 'lucide-react';
+import { Home, CircleEllipsis } from 'lucide-react';
 import { Link } from '../Router/route';
 import { useRouter } from '../../hooks/useRouter';
 
@@ -16,7 +16,6 @@ interface HeaderProps {
 
 const defaultTabs: Tab[] = [
     { id: 'home', label: 'Home', icon: Home, path: '/' },
-    { id: 'cards', label: 'Cards', icon: CreditCard, path: '/cards' },
     { id: 'settings', label: 'Options', icon: CircleEllipsis, path: '/settings' },
 ];
 

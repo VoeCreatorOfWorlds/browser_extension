@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 interface TextExtractionService {
   extractTextFromPage: () => Promise<string>;
@@ -9,7 +9,6 @@ interface ExtractionResult {
   loading: boolean;
   error: string | null;
   extractText: () => Promise<void>;
-  clearExtractedText: () => void;
 }
 
 const textExtractionService: TextExtractionService = {
@@ -65,24 +64,5 @@ export const useTextExtraction = (): ExtractionResult => {
     }
   }, []);
 
-  const clearExtractedText = useCallback(() => {
-    setExtractedText('');
-    setError(null);
-  }, []);
-
-  useEffect(() => {
-    const handleTabChange = () => {
-      clearExtractedText();
-    };
-
-    chrome.tabs.onActivated.addListener(handleTabChange);
-    chrome.tabs.onUpdated.addListener(handleTabChange);
-
-    return () => {
-      chrome.tabs.onActivated.removeListener(handleTabChange);
-      chrome.tabs.onUpdated.removeListener(handleTabChange);
-    };
-  }, [clearExtractedText]);
-
-  return { extractedText, loading, error, extractText, clearExtractedText };
+  return { extractedText, loading, error, extractText, };
 };

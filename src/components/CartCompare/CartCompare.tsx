@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AlternativeCart, CartProduct } from '../../types';
-import { compareCart } from '../../services/compareCartService';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, AlertCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LoadingAnimation } from '../Loading/LoadingAnimation';
 
 interface CompareProductCartsProps {
-    originalCart: CartProduct[];
-    onBack: () => void;
+    products: CartProduct[];
 }
 
 const getHostname = (url: string): string => {
@@ -25,53 +24,93 @@ const getHostname = (url: string): string => {
     }
 };
 
-const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart, onBack }) => {
+const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) => {
     const [alternativeCarts, setAlternativeCarts] = useState<AlternativeCart[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
     useEffect(() => {
+        let isMounted = true;
+        const controller = new AbortController();
+
         const fetchAlternativeCarts = async () => {
+            setIsLoading(true);
+            setError(null);
+
             try {
-                const cart = {
-                    cartProducts: originalCart,
-                    getTotalPrice: () => originalCart.reduce((total, product) => total + product.price * product.quantity, 0)
-                };
-                const result = await compareCart(cart);
-                console.log('Alternative carts:', result);
+                interface CompareCartResponse {
+                    data?: AlternativeCart[];
+                    error?: string;
+                }
 
-                const cartsWithTotal = result.map(alternativeCart => {
-                    const total = alternativeCart.products.reduce((cartTotal, product, index) => {
-                        const quantity = originalCart[index].quantity;
-                        return cartTotal + (product.price * quantity);
-                    }, 0);
-                    return { ...alternativeCart, total };
+                const response = await new Promise<CompareCartResponse>((resolve, reject) => {
+                    chrome.runtime.sendMessage(
+                        { type: "COMPARE_CART", payload: products },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                reject(new Error(chrome.runtime.lastError.message));
+                            } else {
+                                resolve(response);
+                            }
+                        }
+                    );
                 });
 
-                const originalTotal = originalCart.reduce((total, product) => total + product.price * product.quantity, 0);
-                const sortedCarts = cartsWithTotal.sort((a, b) => {
-                    const savingsA = originalTotal - a.total;
-                    const savingsB = originalTotal - b.total;
-                    return savingsB - savingsA;
-                });
+                if (controller.signal.aborted) return;
 
-                console.log('Sorted carts:', sortedCarts);
-
-                setAlternativeCarts(sortedCarts);
-            } catch (err) {
-                console.error('Error fetching alternative carts:', err);
-                setError('Failed to fetch alternative carts. Please try again.');
-            } finally {
-                setIsLoading(false);
+                if (response && response.data) {
+                    console.log("Alternative carts received:", response.data);
+                    if (isMounted) {
+                        setAlternativeCarts(response.data);
+                        setIsLoading(false);
+                    }
+                } else if (response && response.error) {
+                    throw new Error(response.error);
+                } else {
+                    throw new Error('Unexpected response from the server');
+                }
+            } catch (error) {
+                console.error('Error in fetchAlternativeCarts:', error);
+                if (isMounted) {
+                    if (error instanceof Error) {
+                        setError(error.message || 'An error occurred while comparing carts. Please try again.');
+                    } else {
+                        setError('An unknown error occurred while comparing carts. Please try again.');
+                    }
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchAlternativeCarts();
-    }, [originalCart]);
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [products]);
+
+    if (isLoading) {
+        return <LoadingAnimation
+            message="Comparing Products"
+            submessage="Finding the best deals across different stores..."
+        />;
+    }
+
+    if (error) {
+        return (
+            <div className="mx-4 my-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center text-red-700">
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                    <span className="text-sm font-medium">{error}</span>
+                </div>
+            </div>
+        );
+    }
 
     const hasSavings = alternativeCarts.some(cart => {
-        const originalTotal = originalCart.reduce((total, product) => total + product.price * 1, 0);
+        const originalTotal = products.reduce((total, product) => total + product.price * product.quantity, 0);
         return cart.total < originalTotal;
     });
 
@@ -92,35 +131,12 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart,
         });
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 m-3 text-sm" role="alert">
-                <p className="font-bold">Error</p>
-                <p>{error}</p>
-            </div>
-        );
-    }
-
     return (
         <div className="pb-8 w-full min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-            <button
-                onClick={onBack}
-                className="m-3 px-4 py-2 bg-purple-600 text-white text-sm rounded-full shadow-md hover:bg-purple-700 transition duration-300 ease-in-out transform hover:-translate-y-0.5 hover:scale-105"
-            >
-                ← Back to Cart
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-center text-indigo-800">{headerMessage}</h2>
+            <h2 className="text-2xl font-bold mb-6 mt-6 text-center text-indigo-800">{headerMessage}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-3">
                 {alternativeCarts.map((cart, cartIndex) => {
-                    const originalTotal = originalCart.reduce((total, product) => total + product.price * product.quantity, 0);
+                    const originalTotal = products.reduce((total, product) => total + product.price * product.quantity, 0);
                     const savings = originalTotal - cart.total;
                     const isSavings = savings > 0;
 
@@ -148,7 +164,20 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart,
                                             return (
                                                 <React.Fragment key={productIndex}>
                                                     <tr className="border-b border-gray-100">
-                                                        <td className="py-1">{product.productName}</td>
+                                                        <td className="py-1">
+                                                            {product.url ? (
+                                                                <a
+                                                                    href={product.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-indigo-600 hover:text-indigo-800 transition-colors hover:underline"
+                                                                >
+                                                                    {product.productName}
+                                                                </a>
+                                                            ) : (
+                                                                <span>{product.productName}</span>
+                                                            )}
+                                                        </td>
                                                         <td className="text-right py-1">R {product.price}</td>
                                                         <td className="text-right py-1">{product.quantity}</td>
                                                         <td className="text-right py-1">
@@ -208,6 +237,15 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ originalCart,
                         </div>
                     );
                 })}
+            </div>
+            <div className="mt-8 px-3 max-w-2xl">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
+                    <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-700">
+                        <p className="font-medium mb-1">Note about product links:</p>
+                        <p>Product links will direct you to retailer websites. While we strive to link directly to products, you may occasionally need to search for specific items on the retailer's site. We're continuously improving our AI to enhance link accuracy.</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

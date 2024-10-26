@@ -6,10 +6,26 @@ interface CompareCartResponse {
     alternativeCarts: AlternativeCart[];
 }
 
+async function getCurrentTabHostname() {
+    try {
+        let tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].url) {
+            let url = new URL(tabs[0].url);
+            return url.hostname;
+        }
+    } catch (error) {
+        console.error("Error getting hostname:", error);
+    }
+    return null;
+}
+
 export const compareCart = async (originalCart: Cart): Promise<AlternativeCart[]> => {
     console.log('compareCart called with:', { originalCart });
 
-    const bodyObj = { ...originalCart };
+    // get the current hostname of the client and add it to the cart object
+    const hostname = await getCurrentTabHostname();
+    console.log('Hostname:', hostname);
+    const bodyObj = { ...originalCart, hostname };
     const body = JSON.stringify(bodyObj);
 
     try {

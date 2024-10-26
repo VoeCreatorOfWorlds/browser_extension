@@ -7,9 +7,9 @@ import LoginForm from './components/Auth/LoginForm';
 import SignupForm from './components/Auth/SignUpForm';
 import CartContents from './components/TextExtraction/ExtractedTextDisplay';
 import Options from './components/Header/Options';
-import CardList from './components/Card/CardList';
 import { AuthenticatedApp } from './components/Auth/AuthenticatedApp';
 import './App.css';
+import { LoadingAnimation } from './components/Loading/LoadingAnimation';
 
 const Home: React.FC = () => {
   const { extractedText, loading: extractionLoading, extractText } = useTextExtraction();
@@ -22,7 +22,12 @@ const Home: React.FC = () => {
   }, [user, extractText]);
 
   if (extractionLoading) {
-    return <div>Checking cart contents...</div>;
+    return (
+      <LoadingAnimation
+        message="Analyzing Your Cart"
+        submessage="Scanning page for cart contents..."
+      />
+    );
   }
 
   return <CartContents cartDescription={extractedText} />;
@@ -45,7 +50,6 @@ const App: React.FC = () => {
 
   const authenticatedRoutes = [
     { path: '/', component: Home },
-    { path: '/cards', component: CardList },
     { path: '/settings', component: Options },
   ];
 

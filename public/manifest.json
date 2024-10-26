@@ -24,5 +24,9 @@
                 "contentScript.js"
             ]
         }
-    ]
+    ],
+    "background": {
+        "service_worker": "worker.js",
+        "type": "module"
+    }
 }

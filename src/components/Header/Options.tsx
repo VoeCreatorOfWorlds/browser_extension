@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Bell, LogOut, HandCoins, Glasses, User, CreditCard } from 'lucide-react';
-import CreateCardForm from '../Card/CreateCardRequest';
+import React from 'react';
+import { LogOut } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 interface ActionCardProps {
     onClick: () => void;
@@ -19,50 +19,14 @@ const ActionCard: React.FC<ActionCardProps> = ({ onClick, icon: Icon, text }) =>
 );
 
 const Options: React.FC = () => {
-    const [activeComponent, setActiveComponent] = useState<string | null>(null);
-
-    const handleAction = (action: string): void => {
-        console.log(`${action} clicked`);
-        setActiveComponent(action);
-    };
-
-    const handleLogout = async (): Promise<void> => {
-        try {
-            localStorage.removeItem('authTokens');
-            if (chrome.runtime && chrome.runtime.reload) {
-                chrome.runtime.reload();
-            } else {
-                window.location.reload();
-            }
-        } catch (error) {
-            console.error('Logout failed:', error);
-        }
-    };
+    const { handleLogout } = useAuth();
 
     const renderComponent = () => {
-        switch (activeComponent) {
-            case 'ask':
-                return <CreateCardForm onBack={() => setActiveComponent(null)} />;
-            case 'viewAsks':
-                return <div>View Asks Component</div>;
-            case 'notifications':
-                return <div>Notifications Component</div>;
-            case 'account':
-                return <div>Account Component</div>; // Replace with actual Account component
-            case 'createCard':
-                return <div>Create Card Component</div>; // Replace with actual Create Card component
-            default:
-                return (
-                    <main className="p-4 space-y-3">
-                        <ActionCard onClick={() => handleAction('createCard')} icon={CreditCard} text="Create Card" />
-                        <ActionCard onClick={() => handleAction('ask')} icon={HandCoins} text="Ask" />
-                        <ActionCard onClick={() => handleAction('viewAsks')} icon={Glasses} text="View Asks" />
-                        <ActionCard onClick={() => handleAction('notifications')} icon={Bell} text="Notifications" />
-                        <ActionCard onClick={() => handleAction('account')} icon={User} text="Account" />
-                        <ActionCard onClick={handleLogout} icon={LogOut} text="Logout" />
-                    </main>
-                );
-        }
+        return (
+            <main className="p-4 space-y-3">
+                <ActionCard onClick={handleLogout} icon={LogOut} text="Logout" />
+            </main>
+        );
     };
 
     return (
