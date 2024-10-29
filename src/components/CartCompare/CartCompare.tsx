@@ -3,9 +3,14 @@ import { AlternativeCart, CartProduct } from '../../types';
 import { ChevronDown, AlertCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingAnimation } from '../Loading/LoadingAnimation';
+import { authenticatedFetch } from '../../utils/auth';
 
 interface CompareProductCartsProps {
     products: CartProduct[];
+}
+interface CompareCartResponse {
+    data?: AlternativeCart[];
+    error?: string;
 }
 
 const getHostname = (url: string): string => {
@@ -30,23 +35,65 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) =
     const [error, setError] = useState<string | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
+    const handleProductClick = async (product: CartProduct, url: string, event: React.MouseEvent) => {
+        event.preventDefault();
+
+        try {
+            // Log the click to your backend
+            await authenticatedFetch('/track/product-clicks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    productName: product.productName,
+                    productUrl: url,
+                    price: product.price,
+                    timestamp: new Date().toISOString(),
+                    siteUrl: getHostname(url)
+                })
+            });
+
+            // Open the product URL in a new tab
+            window.open(url, '_blank');
+        } catch (error) {
+            console.error('Failed to log product click:', error);
+            // Still open the URL even if logging fails
+            window.open(url, '_blank');
+        }
+    };
+
+
     useEffect(() => {
         let isMounted = true;
         const controller = new AbortController();
+
+        const getCurrentTab = async () => {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]?.url) {
+                const url = new URL(tabs[0].url);
+                return url.hostname;
+            }
+            return '';
+        };
 
         const fetchAlternativeCarts = async () => {
             setIsLoading(true);
             setError(null);
 
             try {
-                interface CompareCartResponse {
-                    data?: AlternativeCart[];
-                    error?: string;
-                }
+                // Get the hostname first
+                const hostname = await getCurrentTab();
 
                 const response = await new Promise<CompareCartResponse>((resolve, reject) => {
                     chrome.runtime.sendMessage(
-                        { type: "COMPARE_CART", payload: products },
+                        {
+                            type: "COMPARE_CART",
+                            payload: {
+                                products,
+                                hostname // Include hostname in the payload
+                            }
+                        },
                         (response) => {
                             if (chrome.runtime.lastError) {
                                 reject(new Error(chrome.runtime.lastError.message));
@@ -168,6 +215,7 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) =
                                                             {product.url ? (
                                                                 <a
                                                                     href={product.url}
+                                                                    onClick={(e) => handleProductClick(product, product.url!, e)}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-indigo-600 hover:text-indigo-800 transition-colors hover:underline"
