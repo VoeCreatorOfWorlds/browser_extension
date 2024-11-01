@@ -38,7 +38,6 @@ const textExtractionService: TextExtractionService = {
       const { bodyText, metaDescription, h1Text } = result.result as { bodyText: string; metaDescription: string; h1Text: string };
       return `Meta Description: ${metaDescription} \n\nH1 Headings: ${h1Text} \n\nBody Text: \n${bodyText}`;
     } catch (error) {
-      console.error("Error in extractTextFromPage:", error);
       throw error;
     }
   }
@@ -50,14 +49,12 @@ export const useTextExtraction = (): ExtractionResult => {
   const [error, setError] = useState<string | null>(null);
 
   const extractText = useCallback(async () => {
-    console.log("Starting text extraction...");
     setLoading(true);
     setError(null);
     try {
       const text = await textExtractionService.extractTextFromPage();
       setExtractedText(text);
     } catch (err) {
-      console.error("Error during extraction:", err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);

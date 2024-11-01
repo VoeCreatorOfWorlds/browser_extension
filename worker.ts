@@ -94,15 +94,12 @@ export const authenticatedFetch = async (url: string, options: RequestInit = {})
 };
 
 const compareCart = async (originalCart) => {
-    console.log('compareCart called with:', { originalCart });
 
     const hostname = self.location.href;
-    console.log('Hostname:', hostname);
     const bodyObj = { ...originalCart, hostname };
     const body = JSON.stringify(bodyObj);
 
     try {
-        console.log(`Sending POST request to ${API_URL}/search-products`);
         const response = await authenticatedFetch(`${API_URL}/search-products`, {
             method: 'POST',
             headers: {
@@ -111,20 +108,15 @@ const compareCart = async (originalCart) => {
             body: body,
         });
 
-        console.log('Response status:', response.status);
-
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Error response:', errorText);
             throw new Error(`Comparing cart contents failed with status ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('Parsed response data:', data);
 
         return data.alternativeCarts;
     } catch (error) {
-        console.error('Error in compareCart:', error);
         throw error;
     }
 }
@@ -159,7 +151,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 sendResponse({ data: sortedCarts });
             })
             .catch(error => {
-                console.error('Error comparing carts:', error);
                 sendResponse({ error: 'Failed to compare carts. Please try again.' });
             });
 

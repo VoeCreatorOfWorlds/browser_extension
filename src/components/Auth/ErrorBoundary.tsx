@@ -24,8 +24,7 @@ class UnauthorizedErrorBoundaryClass extends Component<
         return { hasError: true, is401Error: error.message.includes('401') };
     }
 
-    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('Uncaught error:', error, errorInfo);
+    componentDidCatch(error: Error, _: ErrorInfo) {
         if (error.message.includes('401')) {
             this.props.handleLogout();
             this.props.navigateToLogin();

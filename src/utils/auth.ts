@@ -70,9 +70,7 @@ export const getAuthHeader = async (): Promise<Headers> => {
       headers.append('Authorization', `Bearer ${tokens.access_token}`);
     }
 
-    console.log("tokens:", tokens);
-  } catch (error) {
-    console.error("Error getting auth tokens:", error);
+  } catch (_) {
   }
 
   return headers;

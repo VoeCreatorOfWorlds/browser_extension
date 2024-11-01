@@ -3,7 +3,6 @@ import { AlternativeCart, CartProduct } from '../../types';
 import { ChevronDown, AlertCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingAnimation } from '../Loading/LoadingAnimation';
-import { authenticatedFetch } from '../../utils/auth';
 
 interface CompareProductCartsProps {
     products: CartProduct[];
@@ -22,7 +21,6 @@ const getHostname = (url: string): string => {
         }
         return new URL(url).hostname;
     } catch (error) {
-        console.error(`Failed to parse URL: ${url}`, error);
         const domainMatch = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:/\n?]+)/im);
         if (domainMatch) return domainMatch[1];
         return 'Unknown Site';
@@ -39,30 +37,29 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) =
         event.preventDefault();
 
         try {
-            // Log the click to your backend
-            await authenticatedFetch('/track/product-clicks', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    productName: product.productName,
-                    productUrl: url,
-                    price: product.price,
-                    timestamp: new Date().toISOString(),
-                    siteUrl: getHostname(url)
-                })
+            await new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage({
+                    type: "TRACK_PRODUCT_CLICK",
+                    payload: {
+                        productName: product.productName,
+                        productUrl: url,
+                        price: product.price,
+                        timestamp: new Date().toISOString(),
+                        siteUrl: getHostname(url)
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        resolve(response);
+                    }
+                });
             });
-
-            // Open the product URL in a new tab
-            window.open(url, '_blank');
-        } catch (error) {
-            console.error('Failed to log product click:', error);
-            // Still open the URL even if logging fails
+        } catch (_) {
+        } finally {
             window.open(url, '_blank');
         }
     };
-
 
     useEffect(() => {
         let isMounted = true;
@@ -107,7 +104,6 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) =
                 if (controller.signal.aborted) return;
 
                 if (response && response.data) {
-                    console.log("Alternative carts received:", response.data);
                     if (isMounted) {
                         setAlternativeCarts(response.data);
                         setIsLoading(false);
@@ -118,7 +114,6 @@ const CompareProductCarts: React.FC<CompareProductCartsProps> = ({ products }) =
                     throw new Error('Unexpected response from the server');
                 }
             } catch (error) {
-                console.error('Error in fetchAlternativeCarts:', error);
                 if (isMounted) {
                     if (error instanceof Error) {
                         setError(error.message || 'An error occurred while comparing carts. Please try again.');

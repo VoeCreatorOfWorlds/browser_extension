@@ -2,10 +2,7 @@ import { useRouter } from "../../hooks/useRouter";
 
 export const Router: React.FC = () => {
     const { currentPath, routes } = useRouter();
-    console.log("currentPath: ", currentPath)
-    console.log("routes: ", routes)
     const CurrentComponent = routes.find(route => route.path === currentPath)?.component;
-    console.log("component: ", CurrentComponent)
 
     if (!CurrentComponent) {
         return <div>404 Not Found</div>;

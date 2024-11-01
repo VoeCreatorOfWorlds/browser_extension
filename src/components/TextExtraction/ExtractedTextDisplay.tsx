@@ -14,7 +14,6 @@ interface CartContentsProps {
 }
 
 const CartContents: React.FC<CartContentsProps> = ({ cartDescription }) => {
-    console.log('CartContents called with:', { cartDescription });
     const [cartItems, setCartItems] = useState<CartProduct[]>([]);
     const [loadingStage, setLoadingStage] = useState<'extracting' | 'comparing' | null>(null);
     const [error, setError] = useState<string | null>(null);

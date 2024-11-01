@@ -4,7 +4,6 @@ const DB_NAME = 'AuthDB';
 const STORE_NAME = 'AuthTokens';
 const DB_VERSION = 1;
 
-// Initialize the IndexedDB
 const initDB = () => {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -19,7 +18,6 @@ const initDB = () => {
     });
 };
 
-// Save auth tokens to IndexedDB
 const saveAuthTokens = async (tokens) => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -32,7 +30,6 @@ const saveAuthTokens = async (tokens) => {
     });
 };
 
-// Get auth tokens from IndexedDB
 const getAuthTokens = async () => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -45,7 +42,6 @@ const getAuthTokens = async () => {
     });
 };
 
-// Delete auth tokens from IndexedDB
 const deleteAuthTokens = async () => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -89,46 +85,34 @@ const authenticatedFetch = async (url, options = {}) => {
     return fetch(url, mergedOptions);
 };
 
-const compareCart = async (originalCart, hostname) => {
-    console.log('compareCart called with:', { originalCart });
-
-    console.log('Hostname href:', hostname);
-    const bodyObj = { ...originalCart, hostname };
-    const body = JSON.stringify(bodyObj);
-
+// New function to handle product clicks
+const handleProductClick = async (clickData) => {
     try {
-        console.log(`Sending POST request to ${API_URL}/search-products`);
-        const response = await authenticatedFetch(`${API_URL}/search-products`, {
+        const response = await authenticatedFetch(`${API_URL}/track/product-clicks`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: body,
+            body: JSON.stringify(clickData)
         });
-
-        console.log('Response status:', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Error response:', errorText);
-            throw new Error(`Comparing cart contents failed with status ${response.status}: ${errorText}`);
+            throw new Error(`Click tracking failed with status ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-        console.log('Parsed response data:', data);
-
-        return data.alternativeCarts;
+        const result = await response.json();
+        return result;
     } catch (error) {
-        console.error('Error in compareCart:', error);
         throw error;
     }
 };
 
-// Update the listener to use IndexedDB
+// Updated message listener to handle both cart comparison and click tracking
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.type === "COMPARE_CART") {
         const originalCart = request.payload.products;
-        const hostname = request.payload.hostname
+        const hostname = request.payload.hostname;
 
         const cart = {
             cartProducts: originalCart,
@@ -155,20 +139,166 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 sendResponse({ data: sortedCarts });
             })
             .catch(error => {
-                console.error('Error comparing carts:', error);
                 sendResponse({ error: 'Failed to compare carts. Please try again.' });
             });
 
         return true;
     }
+    
+    if (request.type === "TRACK_PRODUCT_CLICK") {
+        handleProductClick(request.payload)
+            .then(result => {
+                sendResponse({ success: true, data: result });
+            })
+            .catch(error => {
+                sendResponse({ success: false, error: error.message });
+            });
+        
+        return true; // Keep message channel open for async response
+    }
 });
 
-// New function to handle login
+// [Rest of the code remains the same...]
+const CACHE_DB_NAME = 'CartComparisonCache';
+const CACHE_STORE_NAME = 'CartComparisons';
+const CACHE_DB_VERSION = 1;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+const initCacheDB = () => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
+
+        request.onerror = () => reject("Error opening cache database");
+        request.onsuccess = () => resolve(request.result);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            const store = db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'id' });
+            
+            // Create indexes for efficient querying
+            store.createIndex('timestamp', 'timestamp', { unique: false });
+            store.createIndex('hostname', 'hostname', { unique: false });
+        };
+    });
+};
+
+const generateCacheKey = (cart, hostname) => {
+    // Create a deterministic key based on cart contents and hostname
+    const cartKey = cart.cartProducts
+        .map(p => `${p.productName}_${p.price}_${p.quantity}`)
+        .sort()
+        .join('|');
+    return `${hostname}_${cartKey}`;
+};
+
+const saveToCache = async (cart, hostname, result) => {
+    const db = await initCacheDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([CACHE_STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(CACHE_STORE_NAME);
+
+        const cacheEntry = {
+            id: generateCacheKey(cart, hostname),
+            cart: cart,
+            hostname: hostname,
+            result: result,
+            timestamp: Date.now()
+        };
+
+        const request = store.put(cacheEntry);
+        request.onerror = () => reject("Error saving to cache");
+        request.onsuccess = () => resolve(result);
+    });
+};
+
+const getFromCache = async (cart, hostname) => {
+    const db = await initCacheDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([CACHE_STORE_NAME], 'readonly');
+        const store = transaction.objectStore(CACHE_STORE_NAME);
+        const request = store.get(generateCacheKey(cart, hostname));
+
+        request.onerror = () => reject("Error reading from cache");
+        request.onsuccess = () => {
+            const result = request.result;
+            if (result && (Date.now() - result.timestamp) < CACHE_DURATION) {
+                resolve(result.result);
+            } else {
+                resolve(null);
+            }
+        };
+    });
+};
+
+const clearExpiredCache = async () => {
+    const db = await initCacheDB();
+    const expiryTime = Date.now() - CACHE_DURATION;
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([CACHE_STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(CACHE_STORE_NAME);
+        const index = store.index('timestamp');
+        
+        const range = IDBKeyRange.upperBound(expiryTime);
+        const request = index.openCursor(range);
+        
+        request.onerror = () => reject("Error clearing expired cache");
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                store.delete(cursor.primaryKey);
+                cursor.continue();
+            } else {
+                resolve();
+            }
+        };
+    });
+};
+
+// Updated compareCart function with caching
+const compareCart = async (originalCart, hostname) => {
+
+    try {
+        // Try to get from cache first
+        const cachedResult = await getFromCache(originalCart, hostname);
+        if (cachedResult) {
+            return cachedResult;
+        }
+
+        // If not in cache, make API call
+        const bodyObj = { ...originalCart, hostname };
+        const response = await authenticatedFetch(`${API_URL}/search-products`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(bodyObj),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Comparing cart contents failed with status ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        // Save the result to cache before returning
+        await saveToCache(originalCart, hostname, data.alternativeCarts);
+        
+        // Clear expired cache entries in the background
+        clearExpiredCache().catch(_ => {
+        });
+
+        return data.alternativeCarts;
+    } catch (error) {
+        throw error;
+    }
+};
+
 const handleLogin = async (tokens) => {
     await saveAuthTokens(tokens);
 };
 
-// New function to handle logout
 const handleLogout = async () => {
     await deleteAuthTokens();
 };
