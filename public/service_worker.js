@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000";
+const API_URL = "https://api.buybook.co.za";
 
 const DB_NAME = 'AuthDB';
 const STORE_NAME = 'AuthTokens';
