@@ -20,12 +20,6 @@ export interface SignupData {
   email: string;
   password: string;
   contactNumber: string;
-  is_business: boolean;
-  businessName?: string;
-  businessAddress?: string;
-  businessType?: string;
-  businessRegistrationNumber?: string;
-  businessRegistrationDate?: string;
 }
 
 export const signup = async (signupData: SignupData): Promise<AuthTokens> => {

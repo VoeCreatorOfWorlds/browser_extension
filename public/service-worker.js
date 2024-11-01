@@ -85,7 +85,6 @@ const authenticatedFetch = async (url, options = {}) => {
     return fetch(url, mergedOptions);
 };
 
-// New function to handle product clicks
 const handleProductClick = async (clickData) => {
     try {
         const response = await authenticatedFetch(`${API_URL}/track/product-clicks`, {
@@ -108,57 +107,6 @@ const handleProductClick = async (clickData) => {
     }
 };
 
-// Updated message listener to handle both cart comparison and click tracking
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (request.type === "COMPARE_CART") {
-        const originalCart = request.payload.products;
-        const hostname = request.payload.hostname;
-
-        const cart = {
-            cartProducts: originalCart,
-            getTotalPrice: () => originalCart.reduce((total, product) => total + product.price * product.quantity, 0)
-        };
-
-        compareCart(cart, hostname)
-            .then(result => {
-                const cartsWithTotal = result.map(alternativeCart => {
-                    const total = alternativeCart.products.reduce((cartTotal, product, index) => {
-                        const quantity = originalCart[index].quantity;
-                        return cartTotal + (product.price * quantity);
-                    }, 0);
-                    return { ...alternativeCart, total };
-                });
-
-                const originalTotal = originalCart.reduce((total, product) => total + product.price * product.quantity, 0);
-                const sortedCarts = cartsWithTotal.sort((a, b) => {
-                    const savingsA = originalTotal - a.total;
-                    const savingsB = originalTotal - b.total;
-                    return savingsB - savingsA;
-                });
-
-                sendResponse({ data: sortedCarts });
-            })
-            .catch(error => {
-                sendResponse({ error: 'Failed to compare carts. Please try again.' });
-            });
-
-        return true;
-    }
-    
-    if (request.type === "TRACK_PRODUCT_CLICK") {
-        handleProductClick(request.payload)
-            .then(result => {
-                sendResponse({ success: true, data: result });
-            })
-            .catch(error => {
-                sendResponse({ success: false, error: error.message });
-            });
-        
-        return true; // Keep message channel open for async response
-    }
-});
-
-// [Rest of the code remains the same...]
 const CACHE_DB_NAME = 'CartComparisonCache';
 const CACHE_STORE_NAME = 'CartComparisons';
 const CACHE_DB_VERSION = 1;
@@ -175,7 +123,6 @@ const initCacheDB = () => {
             const db = event.target.result;
             const store = db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'id' });
             
-            // Create indexes for efficient querying
             store.createIndex('timestamp', 'timestamp', { unique: false });
             store.createIndex('hostname', 'hostname', { unique: false });
         };
@@ -183,7 +130,6 @@ const initCacheDB = () => {
 };
 
 const generateCacheKey = (cart, hostname) => {
-    // Create a deterministic key based on cart contents and hostname
     const cartKey = cart.cartProducts
         .map(p => `${p.productName}_${p.price}_${p.quantity}`)
         .sort()
@@ -199,7 +145,10 @@ const saveToCache = async (cart, hostname, result) => {
 
         const cacheEntry = {
             id: generateCacheKey(cart, hostname),
-            cart: cart,
+            cart: {
+                cartProducts: cart.cartProducts,
+                totalPrice: cart.totalPrice
+            },
             hostname: hostname,
             result: result,
             timestamp: Date.now()
@@ -255,18 +204,18 @@ const clearExpiredCache = async () => {
     });
 };
 
-// Updated compareCart function with caching
 const compareCart = async (originalCart, hostname) => {
-
     try {
-        // Try to get from cache first
         const cachedResult = await getFromCache(originalCart, hostname);
         if (cachedResult) {
             return cachedResult;
         }
 
-        // If not in cache, make API call
-        const bodyObj = { ...originalCart, hostname };
+        const bodyObj = {
+            cartProducts: originalCart.cartProducts,
+            hostname
+        };
+
         const response = await authenticatedFetch(`${API_URL}/search-products`, {
             method: 'POST',
             headers: {
@@ -282,18 +231,65 @@ const compareCart = async (originalCart, hostname) => {
 
         const data = await response.json();
 
-        // Save the result to cache before returning
         await saveToCache(originalCart, hostname, data.alternativeCarts);
         
-        // Clear expired cache entries in the background
-        clearExpiredCache().catch(_ => {
-        });
+        clearExpiredCache().catch(_ => {});
 
         return data.alternativeCarts;
     } catch (error) {
         throw error;
     }
 };
+
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.type === "COMPARE_CART") {
+        const originalCart = request.payload.products;
+        const hostname = request.payload.hostname;
+
+        const cartForComparison = {
+            cartProducts: originalCart,
+            totalPrice: originalCart.reduce((total, product) => total + product.price * product.quantity, 0)
+        };
+
+        compareCart(cartForComparison, hostname)
+            .then(result => {
+                const cartsWithTotal = result.map(alternativeCart => {
+                    const total = alternativeCart.products.reduce((cartTotal, product, index) => {
+                        const quantity = originalCart[index].quantity;
+                        return cartTotal + (product.price * quantity);
+                    }, 0);
+                    return { ...alternativeCart, total };
+                });
+
+                const originalTotal = cartForComparison.totalPrice;
+                const sortedCarts = cartsWithTotal.sort((a, b) => {
+                    const savingsA = originalTotal - a.total;
+                    const savingsB = originalTotal - b.total;
+                    return savingsB - savingsA;
+                });
+
+                sendResponse({ data: sortedCarts });
+            })
+            .catch(error => {
+                console.log('Error in compareCart: ', error);
+                sendResponse({ error: 'Failed to compare carts. Please try again.' });
+            });
+
+        return true;
+    }
+    
+    if (request.type === "TRACK_PRODUCT_CLICK") {
+        handleProductClick(request.payload)
+            .then(result => {
+                sendResponse({ success: true, data: result });
+            })
+            .catch(error => {
+                sendResponse({ success: false, error: error.message });
+            });
+        
+        return true;
+    }
+});
 
 const handleLogin = async (tokens) => {
     await saveAuthTokens(tokens);

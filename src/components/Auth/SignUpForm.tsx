@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Briefcase, Mail, Lock, Phone, Calendar, FileText, Upload } from 'lucide-react';
+import { Mail, Lock, Phone } from 'lucide-react';
 import { Link } from '../Router/route';
 
 interface SignupFormProps {
@@ -7,25 +7,61 @@ interface SignupFormProps {
     isLoading: boolean;
 }
 
+interface ValidationErrors {
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    contactNumber?: string;
+}
+
 const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
     const [formData, setFormData] = useState({
         email: '',
         password: '',
+        confirmPassword: '',
         contactNumber: '',
-        businessName: '',
-        businessAddress: '',
-        businessType: '',
-        businessRegistrationNumber: '',
-        businessRegistrationDate: '',
     });
-    const [isBusiness, setIsBusiness] = useState(false);
     const [signupSuccess, setSignupSuccess] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
     React.useEffect(() => {
         setIsVisible(true);
     }, []);
+
+    const validateForm = (): boolean => {
+        const errors: ValidationErrors = {};
+
+        // Email validation
+        if (!formData.email) {
+            errors.email = 'Email is required';
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        // Password validation
+        if (!formData.password) {
+            errors.password = 'Password is required';
+        } else if (formData.password.length < 8) {
+            errors.password = 'Password must be at least 8 characters long';
+        }
+
+        // Confirm password validation
+        if (!formData.confirmPassword) {
+            errors.confirmPassword = 'Please confirm your password';
+        } else if (formData.password !== formData.confirmPassword) {
+            errors.confirmPassword = 'Passwords do not match';
+        }
+
+        // Contact number validation
+        if (!formData.contactNumber) {
+            errors.contactNumber = 'Contact number is required';
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -33,15 +69,23 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
             ...prevState,
             [name]: value
         }));
+
+        // Clear validation error for the field being edited
+        setValidationErrors(prev => ({
+            ...prev,
+            [name]: undefined
+        }));
     };
 
     const handleSignup = useCallback(async () => {
         setError(null);
 
-        const dataToSubmit = {
-            ...formData,
-            is_business: isBusiness
-        };
+        if (!validateForm()) {
+            return;
+        }
+
+        // Remove confirmPassword before sending to API
+        const { confirmPassword, ...dataToSubmit } = formData;
 
         try {
             await onSignup(dataToSubmit);
@@ -49,25 +93,19 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
         } catch (error) {
             setError('Signup failed. Please try again.');
         }
-    }, [formData, isBusiness, onSignup]);
-
-    const getUploadUrl = () => {
-        // This function should return the URL for your file upload page
-        // You might want to include any necessary parameters, such as a session token
-        return 'http://your-upload-website.com/upload';
-    };
+    }, [formData, onSignup]);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
             <div
-                className={`w-full max-w-md bg-white p-8  transition-all duration-500 ease-in-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                className={`w-full max-w-md bg-white p-8 transition-all duration-500 ease-in-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
                     }`}
             >
                 <div className="flex flex-col items-center justify-center mb-8">
-                    < img src="logo.png" alt="BuyBook Logo" className="w-24 h-24 mb-4 rounded-full shadow-md" />
+                    <img src="logo.png" alt="BuyBook Logo" className="w-24 h-24 mb-4 rounded-full shadow-md" />
                     <h1 className="text-3xl font-bold text-indigo-600">BuyBook</h1>
                     <p className="text-sm text-gray-600">Smart 1-Click checkout</p>
-                </div >
+                </div>
                 {!signupSuccess ? (
                     <div className="space-y-6">
                         <InputField
@@ -77,6 +115,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
                             type="email"
                             value={formData.email}
                             onChange={handleInputChange}
+                            error={validationErrors.email}
                         />
                         <InputField
                             icon={<Lock size={20} />}
@@ -85,6 +124,16 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
                             type="password"
                             value={formData.password}
                             onChange={handleInputChange}
+                            error={validationErrors.password}
+                        />
+                        <InputField
+                            icon={<Lock size={20} />}
+                            placeholder="Confirm Password"
+                            name="confirmPassword"
+                            type="password"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            error={validationErrors.confirmPassword}
                         />
                         <InputField
                             icon={<Phone size={20} />}
@@ -93,91 +142,27 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
                             type="tel"
                             value={formData.contactNumber}
                             onChange={handleInputChange}
+                            error={validationErrors.contactNumber}
                         />
-                        <div className="flex items-center space-x-3">
-                            <label className="flex items-center space-x-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={isBusiness}
-                                    onChange={() => setIsBusiness(!isBusiness)}
-                                    className="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out"
-                                />
-                                <span className="text-gray-700 font-medium">Sign up as a business</span>
-                            </label>
-                        </div>
-                        <div
-                            className={`space-y-4 overflow-hidden transition-all duration-300 ease-in-out ${isBusiness ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                                }`}
-                        >
-                            <InputField
-                                icon={<Briefcase size={20} />}
-                                placeholder="Business Name"
-                                name="businessName"
-                                value={formData.businessName}
-                                onChange={handleInputChange}
-                            />
-                            <InputField
-                                icon={<FileText size={20} />}
-                                placeholder="Business Address"
-                                name="businessAddress"
-                                value={formData.businessAddress}
-                                onChange={handleInputChange}
-                            />
-                            <InputField
-                                icon={<Briefcase size={20} />}
-                                placeholder="Business Type"
-                                name="businessType"
-                                value={formData.businessType}
-                                onChange={handleInputChange}
-                            />
-                            <InputField
-                                icon={<FileText size={20} />}
-                                placeholder="Business Registration Number"
-                                name="businessRegistrationNumber"
-                                value={formData.businessRegistrationNumber}
-                                onChange={handleInputChange}
-                            />
-                            <InputField
-                                icon={<Calendar size={20} />}
-                                type="date"
-                                placeholder="Business Registration Date"
-                                name="businessRegistrationDate"
-                                value={formData.businessRegistrationDate}
-                                onChange={handleInputChange}
-                            />
-                        </div>
                         <button
                             onClick={handleSignup}
                             disabled={isLoading}
-                            className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 font-semibold transition duration-150 ease-in-out"
+                            className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 font-semibold transition duration-150 ease-in-out disabled:opacity-50"
                         >
                             {isLoading ? 'Signing up...' : 'Sign Up'}
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-6">
-                        <div className="text-center text-green-600 font-semibold">
-                            Signup successful!
-                        </div>
-                        <a
-                            href={getUploadUrl()}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 font-semibold transition duration-150 ease-in-out"
-                        >
-                            <Upload size={20} className="mr-2" />
-                            Upload Required Documents
-                        </a>
+                    <div className="text-center text-green-600 font-semibold">
+                        Signup successful!
                     </div>
                 )}
 
-                {
-                    error && (
-                        <div className="mt-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-                            {error}
-                        </div>
-                    )
-                }
+                {error && (
+                    <div className="mt-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+                        {error}
+                    </div>
+                )}
 
                 <p className="mt-6 text-center text-sm text-gray-600">
                     Already have an account?{' '}
@@ -185,8 +170,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
                         Log in
                     </Link>
                 </p>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 
@@ -197,21 +182,36 @@ interface InputFieldProps {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     type?: string;
+    error?: string;
 }
 
-const InputField: React.FC<InputFieldProps> = ({ icon, placeholder, name, value, onChange, type = "text" }) => (
-    <div className="relative">
-        <div className="absolute top-3 left-3 text-gray-400">
-            {icon}
+const InputField: React.FC<InputFieldProps> = ({
+    icon,
+    placeholder,
+    name,
+    value,
+    onChange,
+    type = "text",
+    error
+}) => (
+    <div className="space-y-1">
+        <div className="relative">
+            <div className="absolute top-3 left-3 text-gray-400">
+                {icon}
+            </div>
+            <input
+                type={type}
+                placeholder={placeholder}
+                name={name}
+                value={value}
+                onChange={onChange}
+                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${error ? 'border-red-500' : 'border-gray-300'
+                    }`}
+            />
         </div>
-        <input
-            type={type}
-            placeholder={placeholder}
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+        {error && (
+            <p className="text-red-500 text-sm">{error}</p>
+        )}
     </div>
 );
 

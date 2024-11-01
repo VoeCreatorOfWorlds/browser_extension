@@ -151,6 +151,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
                 sendResponse({ data: sortedCarts });
             })
             .catch(error => {
+                console.log("Error comparing carts: ", error);
                 sendResponse({ error: 'Failed to compare carts. Please try again.' });
             });
 
