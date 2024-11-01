@@ -36,7 +36,6 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
     };
 
     const handleSignup = useCallback(async () => {
-        console.log("Submitting form", formData);
         setError(null);
 
         const dataToSubmit = {
@@ -47,9 +46,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignup, isLoading }) => {
         try {
             await onSignup(dataToSubmit);
             setSignupSuccess(true);
-            console.log("Signup successful");
         } catch (error) {
-            console.error('Signup failed:', error);
             setError('Signup failed. Please try again.');
         }
     }, [formData, isBusiness, onSignup]);
