@@ -1,5 +1,5 @@
 
-# Chrome Extension for BuyBook
+# Chrome Extension for PriceChecker (BuyBook)
 This a Vite + React project in typescript (for typescript intro see https://www.typescriptlang.org/docs/handbook/intro.html)
 
 The extension also uses a service worker to handle long-running tasks like searching the web for alternative stores to find the products in a user's cart. see the worker.ts / worker.js file. 
